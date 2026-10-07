@@ -1,8 +1,11 @@
+-- Translate indexed RPG Maker command lists into validated interpreter instructions;
+-- this module compiles event programs but does not execute source event code.
 return function(deps)
   local json = deps["contracts.json"]
   local diagnostic = deps["contracts.diagnostic"]
   local movement=deps['converter.movement']
   local messageCompiler=deps['converter.message']
+  -- Bound work on project input and keep numeric command fields within exact Lua integers.
   local maxCommands, maxNesting, maxInteger = 100000, 64, 9007199254740991
   local function object(v) return type(v)=="table" and v~=json.null and not json.is_array(v) end
   local function integer(v) return type(v)=="number" and v==v and v>=-maxInteger and v<=maxInteger and v%1==0 end
@@ -29,6 +32,7 @@ return function(deps)
       diagnostics[#diagnostics+1]=diagnostic.new(code,reason,{file=file,jsonPath=path})
     end
     local function fail(code,reason,file,path) diagnostic.raise(code,reason,{file=file,jsonPath=path}) end
+    -- Sort diagnostics for stable reports and withhold the package if any program failed.
     local function finish()
       table.sort(diagnostics,function(a,b)
         for _,key in ipairs({"file","jsonPath","code","reason"}) do
@@ -107,6 +111,7 @@ return function(deps)
       end
     end
     local system=object(index.database.System) and index.database.System.records or nil
+    -- Compile one source list while attaching its source file and command index to each IR node.
     local function compileProgram(spec)
       local list,file,path=spec.list,spec.file,spec.path
       local function errorAt(code,reason,slot)

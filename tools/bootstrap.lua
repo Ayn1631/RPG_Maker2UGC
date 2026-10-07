@@ -1,4 +1,5 @@
 -- Desktop only: file loading is not copied into a UGC bundle.
+-- Return a dependency-aware module loader rooted at this checkout.
 return function(root)
     assert(_VERSION == "Lua 5.3", "R2U requires Lua 5.3; found " .. tostring(_VERSION))
     root = (root or "."):gsub("\\", "/"):gsub("/+$", "") .. "/"
@@ -7,6 +8,7 @@ return function(root)
         assert(not definitions[item.id], "duplicate desktop module: " .. item.id)
         definitions[item.id] = item
     end
+    -- Resolve dependencies depth-first, memoize each module's exports, and reject dependency cycles.
     local function load_module(id)
         if cache[id] then return cache[id] end
         local item = assert(definitions[id], "unknown desktop module: " .. tostring(id))

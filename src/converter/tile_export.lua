@@ -1,6 +1,8 @@
+-- Export only referenced map tiles and turn the resulting PNGs into explicit template bindings.
 return function(deps)
  local files,json,D=deps['build.files'],deps['contracts.json'],deps['contracts.diagnostic']
  local tiles,png,resources=deps['assets.tiles'],deps['assets.png'],deps['converter.resources'];local M={}
+ -- Resolve every animation frame through its unique-frame template ID and preserve table edges.
  function M.bind(manifest,bindings)
   local function fail(reason)D.raise('E_TILE_BINDINGS',reason)end
   local function id(value)return type(value)=='number' and value%1==0 and value>0 and value<=2147483647 end
@@ -25,6 +27,7 @@ return function(deps)
   end
   return bindings
  end
+ -- Rasterize referenced tiles offline; identical frame recipes share one emitted PNG.
  function M.export(data,config,root)
   local function read(path)
    local bytes,reason=files.read(files.join(config.sourceRoot,path))
@@ -52,6 +55,7 @@ return function(deps)
    for _,id in ipairs(ids)do
     local key=setKey..':'..id;local flag=set.flags[id+1]
     local entry={key=key,width=size,height=size,frameTicks=30,frames=json.array(),uniqueFrames=json.array()}
+    -- Key by the serialized raster recipe so visually identical frames are emitted once.
     local recipes={}
     for frame=0,tiles.frameCount(id)-1 do
      local recipe=tiles.recipe(id,size,flag,frame,tables);local signature=json.encode(recipe);local name=recipes[signature]

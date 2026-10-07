@@ -25,6 +25,7 @@ return function(deps)
  local function dead(q)return has(q.stateIds,1)end
  local function movable(q)return not q.hidden and q.restriction<4 end
  local phases={start=true,input=true,turn=true,action=true,turnEnd=true,battleEnd=true,aborting=true}
+ -- Create a battle from prepared factories, optionally restoring a matching versioned snapshot.
  function M.new(o)
   plain(o);for _,field in ipairs({'actorProgram','partyProgram','enemyProgram','actions','lifecycle'})do plain(o[field])end
   for _,name in ipairs({'canEscape','canLose','preemptive','surprise','visuAlwaysEscape'})do if o[name]~=nil and type(o[name])~='boolean'then fail('E_BATTLE_SHAPE','Expected boolean '..name)end end
@@ -138,6 +139,8 @@ return function(deps)
    end
    return out.rngState
   end
+  -- Run an authority change against detached copies and publish all roots only after validation.
+  -- If any callback fails, the live battle, party, actor, enemy, and RNG roots remain untouched.
   local function transact(fn)
    if busy then fail('E_BATTLE_REENTRY','Battle operation is not reentrant')end;busy=true
    local ok,value=pcall(function()
@@ -637,9 +640,11 @@ return function(deps)
    end)
    out.waitForAction=wait;return out
   end
+  -- Capture every authority root needed to resume this battle without sharing mutable tables.
   function B.snapshot()return{schemaVersion=1,profile=profile,battleSystem=battleSystem,battleId=o.battleId,troopId=o.troopId,state=copy(state),partyState=party.snapshot(),actorsState=actors.snapshot(),enemiesState=enemies.snapshot(),rngState=copy(random),switches=copy(switches),variables=copy(variables)}end
   function B.result()if not state.settled then return nil end;local out=copy(state.outcome);out.partyState=party.snapshot();out.actorsState=actors.snapshot();out.rngState=copy(random);out.lastActionData=copy(state.lastActionData);return out end
   function B.setContext(c)if busy then fail('E_BATTLE_REENTRY','Cannot update context during a stage')end;plain(c);local sw,va=copy(c.switches or switches),copy(c.variables or variables);switches,variables=sw,va;cached=nil;tpbClockModel=nil end
+  -- Build a detached UI projection; cached views are copied so callers cannot mutate battle state.
   function B.view()
    if cached then return copy(cached)end
    local ctx=readContext(state,party,actors,enemies);local v={battleId=o.battleId,revision=state.revision,phase=state.phase,corePhase=state.phase,battleSystem=battleSystem,tpb=tpb,turnCount=state.turnCount,canEscape=o.canEscape or false,canLose=o.canLose or false,party={},troop={},input=false,commands={},skills={},skillTypes={},items={},targets={},records=copy(latest),result=state.settled and copy(state.outcome)or false}
@@ -685,6 +690,7 @@ return function(deps)
    end
    cached=copy(v);return v
   end
+  -- Accept an action only for the current battle revision and active input slot.
   function B.submit(c)
    plain(c);local allowed={battleId=true,revision=true,command=true,actorRef=true,actionSlot=true,id=true,targetIndex=true};for k in next,c do if not allowed[k]then fail('E_BATTLE_INPUT','Unknown input field')end end
    if c.battleId~=o.battleId or c.revision~=state.revision then fail('E_BATTLE_TOKEN','Stale or cross-battle input token')end
@@ -784,6 +790,7 @@ return function(deps)
    busy=false;if not ok then error(result,0)end;return result
   end
   function B.isVisuSequence()return state.visuSequence~=nil end
+  -- Advance at most `budget` logical steps; host-frame time is applied to the first step only.
   function B.advance(budget,clock)
    clock=copy(clock or {});for k in pairs(clock)do if k~='frames'and k~='timeActive'then fail('E_BATTLE_SHAPE','Unknown battle clock field')end end
    clock.frames=number(clock.frames==nil and 1 or clock.frames,0,1);if clock.timeActive~=nil and type(clock.timeActive)~='boolean'then fail('E_BATTLE_SHAPE','Invalid timeActive flag')end

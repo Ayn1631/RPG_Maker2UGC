@@ -1,6 +1,7 @@
 -- Versioned deterministic draws and finite golden-test streams. No global RNG.
 return function()
   local M={}
+  -- Keep counters and seeds inside Lua's exact-integer range for portable snapshots.
   local maximum=9007199254740991
   local function fail(code,reason) error({severity="error",code=code,reason=reason},0) end
   local function integer(v) return type(v)=="number" and v==v and v>=0 and v<=maximum and v%1==0 end
@@ -20,6 +21,7 @@ return function()
   local function create(algorithm,state,draws,values)
     local last
     local R={}
+    -- Record each purpose-tagged draw so replay traces can explain random consumption order.
     local function draw(purpose,upper)
       if type(purpose)~="string" or #purpose==0 or #purpose>128 then fail("E_RNG_ARGUMENT","A draw requires a purpose of 1..128 bytes") end
       if draws==maximum then fail("E_RNG_STATE","Draw counter exhausted") end
@@ -38,6 +40,7 @@ return function()
       return result
     end
     function R.nextUnit(purpose) return draw(purpose) end
+    -- Map a unit draw to the half-open integer range [0, upper), matching RPG Maker APIs.
     function R.nextInt(upper,purpose)
       if not integer(upper) or upper<1 or upper>2147483647 then fail("E_RNG_ARGUMENT","Integer upper bound must be 1..2147483647") end
       return draw(purpose,upper)
@@ -46,6 +49,7 @@ return function()
       if not last then return nil end
       local result={};for k,v in next,last do result[k]=v end;return result
     end
+    -- Serialize algorithm identity and counters so restoring reproduces the next draw exactly.
     function R.snapshot()
       local result={algorithm=algorithm,draws=draws}
       if values then result.values=valuesCopy(values) else result.state=state end
@@ -53,11 +57,14 @@ return function()
     end
     return R
   end
+  -- Start the deterministic Park-Miller stream from a caller-supplied seed.
   function M.new(seed)
     if not integer(seed) or seed<1 or seed>2147483646 then fail("E_RNG_STATE","Seed must be 1..2147483646") end
     return create("r2u-lcg31-v1",seed,0)
   end
+  -- Use a finite explicit stream when a build or golden replay must avoid algorithmic randomness.
   function M.fixed(values) return create("r2u-fixed-v1",nil,0,valuesCopy(values)) end
+  -- Validate a versioned snapshot before constructing a stream at its saved draw position.
   function M.restore(snapshot)
     plain(snapshot)
     local algorithm=snapshot.algorithm

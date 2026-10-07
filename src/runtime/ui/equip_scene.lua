@@ -6,9 +6,11 @@ return function(deps)
  function M.new(world,ui,catalogs,actorId)
   for _,method in ipairs({'equipState','equipCandidates','previewEquip','equipmentCommand','snapshot'})do if type(world[method])~='function'then fail('Missing equipment authority: '..method)end end
   local mz=ui.profile=='mz-1.10.0';if not mz and ui.profile~='mv-1.5.1'then fail('Unsupported equipment UI profile')end
+  -- Navigation stays local; equipment and inventory changes are committed by `world`.
   local mode,commandIndex,slotIndex,itemIndex='command',0,-1,-1
   local navigation=deps['runtime.ui.equip_layout'].navigation(ui)
   local scrollY={slots=0,items=0}
+  -- Bump this when a visible selection or candidate set changes so renderers can discard stale rows.
   local revision=0.0;local E={}
   local function state()return world.equipState(actorId)end
   local function candidates()if slotIndex<0 then return {false}end;return world.equipCandidates(actorId,slotIndex+1)end
@@ -55,6 +57,7 @@ return function(deps)
    elseif mode=='slot'then mode,slotIndex='command',-1;scrollY.items=0
    else return false end;return changed()
   end
+  -- Commit the selection through the authoritative world command; UI candidates never edit actor state directly.
   function E.confirm()
    if mode=='command'then
     if commandIndex==0 then mode,slotIndex='slot',0;scrollY.items=0;if not mz then ensure('slots',0,#state().actor.equipmentSlots)end;return changed()end
@@ -91,6 +94,7 @@ return function(deps)
    if mode~='command'then ensure(mode=='slot' and 'slots' or 'items',nextIndex,count)end
    return changed()
   end
+  -- Return a UI projection containing candidate previews without mutating actor equipment.
   function E.view()
    local current=state();local inventory=world.snapshot().party.inventory;local slots,items={},{}
    for i,etype in ipairs(current.actor.equipmentSlots)do

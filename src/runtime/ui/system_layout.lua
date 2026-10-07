@@ -1,9 +1,12 @@
+-- Calculate rectangles for system menus without creating or mutating host controls.
 return function()
  local M={}
  function M.new(ui)
   local L={};local w,h,p,line=ui.box.width,ui.box.height,ui.window.padding,ui.window.lineHeight
+  -- MZ system windows reserve eight extra pixels per row for their native touch layout.
   local mz=ui.profile=='mz-1.10.0';local rh=line+(mz and 8 or 0)
   local function rect(x,y,width,height)return{x=x,y=y,width=width,height=height}end
+  -- `first` and returned row indices are zero-based, matching RPG Maker list indices.
   local function window(x,y,width,height,n,cols,first)
    local c=rect(x+p,y+p,width-p*2,height-p*2);local out={rect=rect(x,y,width,height),contents=c,clipRect=c,textRect=c,rows={},visible=true}
    cols=cols or 1;first=first or 0;out.visibleRows=math.floor(c.height/rh);out.firstVisibleRow=first
@@ -12,13 +15,17 @@ return function()
     out.rows[#out.rows+1]={index=i,rect=r,textRect=rect(r.x+ui.window.itemPadding,r.y,r.width-ui.window.itemPadding*2,line)}
    end;return out
   end
+  -- Center the title commands and honor the source title-command window offsets.
   function L.title()
    local t=ui.titleCommandWindow or {};local height=4*rh+p*2
    local command=window((w-240)/2+(t.offsetX or 0),h-height-96+(t.offsetY or 0),240,height,4);command.background=t.background or 0
    return{command=command,title=rect(20,h/4,w-40,96)}
   end
+  -- The end-game command list is centered independently of title-screen commands.
   function L.gameEnd()local height=3*rh+p*2;return{command=window((w-240)/2,(h-height)/2,240,height,3)}end
+  -- Game over keeps only the centered message rectangle.
   function L.gameover()return{title=rect(20,h/2-48,w-40,96)}end
+  -- Lay out the name editor and its ten-column character palette.
   function L.name(v)
    local width=math.min(600,w);local editHeight=144+p*2;local inputHeight=9*rh+p*2;local top=(h-editHeight-inputHeight-8)/2
    local edit=window((w-width)/2,top,width,editHeight,0);edit.faceRect=rect(edit.contents.x,edit.contents.y,144,144)
@@ -31,6 +38,7 @@ return function()
    end
    return{edit=edit,list=input}
   end
+  -- Place numeric/choice input opposite the message window to avoid covering its text.
   function L.messageInput(v,messageLayout,first)
    local m=messageLayout.message;local y=m.rect.y
    if v.kind=='number'then

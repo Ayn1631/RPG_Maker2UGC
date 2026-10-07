@@ -8,12 +8,14 @@ return function()
   local channels,volume={}, {bgm=100,bgs=100,me=100,se=100}
   local clock,serial=0,0;local saved,battleSaved,walkingSaved;local closed=false;local S={}
   local system={battleBgm=catalog.battleBgm,victoryMe=catalog.victoryMe,defeatMe=catalog.defeatMe}
+  -- Emit the host signal with a monotonically increasing sequence number for each channel change.
   local function send(channel,operation,cue,seconds,position)
    serial=serial+1
    if catalog.enabled then emit({channel=channel,signal=catalog.signals[channel],index=cue and cue.index or 0,
     audioId=cue and cue.audioId or nil,operation=operation,volume=(cue and cue.volume or 0)*volume[channel]/100,
     pitch=cue and cue.pitch or 100,pan=cue and cue.pan or 0,seconds=seconds or 0,position=position or 0,sequence=serial})end
   end
+  -- Estimate the current cue position from elapsed logical seconds and its playback pitch.
   local function position(state)return state and state.position+(clock-state.start)*state.cue.pitch/100 or 0 end
   local function stop(channel)
    if channels[channel]then send(channel,'stop');channels[channel]=nil end
@@ -29,6 +31,7 @@ return function()
    channels[channel]={cue=copy(cue),start=clock,position=pos or 0}
    send(channel,'play',cue,0,pos)
   end
+  -- Apply a compiled audio instruction; cue lookup and source-name resolution happened at build time.
   function S.command(ins)
    if closed then return {kind='continue'}end
    local channel,action=ins.channel,ins.action
@@ -83,12 +86,14 @@ return function()
    if closed or volume[channel]==value then return end;volume[channel]=value
    local state=channels[channel];if state then send(channel,'volume',state.cue,0,position(state))end
   end
+  -- Advance the logical audio clock; host playback completion is not inferred from this timer.
   function S.tick(seconds)
    if closed then return end
    if type(seconds)~='number' or seconds~=seconds or seconds<0 or seconds==math.huge then fail('Invalid audio elapsed time')end
    clock=clock+seconds
    for _,channel in ipairs({'bgm','bgs','me','se'})do local state=channels[channel];if state and state.fadeEnd and clock>=state.fadeEnd then stop(channel)end end
   end
+  -- Distinguish signal submission from confirmed host loading in saved inspection state.
   function S.snapshot()return {channels=copy(channels),volume=copy(volume),sequence=serial,clock=clock,status=catalog.enabled and 'signal_sent_unconfirmed' or 'unbound'}end
   function S.close()if closed then return end;for _,channel in ipairs({'bgm','bgs','me','se'})do stop(channel)end;closed=true end
   return S

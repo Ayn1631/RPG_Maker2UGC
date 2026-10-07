@@ -1,6 +1,9 @@
+-- Build the request-driven shop UI state machine; inventory and gold changes stay authoritative in `world`.
 return function()
  local M={}
  function M.new(world,ui,catalogs,request)
+  -- Keep navigation locally while every purchase or sale is revalidated by the world session.
+  -- `revision` tracks local selection/paging changes; world content has a separate revision.
   local S={};local mode='command';local commandIndex,index,categoryIndex=0,0,0;local quantity=1;local pending,pendingMode;local revision=0;local statusPage=0
   local categories={};for i,symbol in ipairs({'item','weapon','armor','keyItem'})do
    if ui.profile=='mv-1.5.1' or ui.itemCategories[i] then categories[#categories+1]={symbol=symbol,label=ui.terms.commands[({item=5,weapon=13,armor=14,keyItem=15})[symbol]]}end
@@ -17,6 +20,7 @@ return function()
     end
    end;index=math.max(0,math.min(index,#out-1));return out
   end
+  -- Return a detached render model, including the currently quoted item and actor comparison page.
   function S.view()
    local v=state();local list=rows();local r=mode=='number' and pending or list[index+1]
    local comparison
@@ -36,16 +40,19 @@ return function()
     comparison=comparison,pageButtonsEnabled=comparison~=nil and comparison.pageCount>1,
     commands={{label=ui.terms.commands[25] or 'Buy',enabled=true},{label=ui.terms.commands[26] or 'Sell',enabled=not request.purchaseOnly},{label=ui.terms.commands[23] or 'Cancel',enabled=true}}}
   end
+  -- Page only the equipment comparison panel; 4 and 6 are the host's left/right directions.
   function S.page(direction)
    local comparison=S.view().comparison
    if not comparison or comparison.pageCount<2 or (direction~=4 and direction~=6)then return false end
    statusPage=(statusPage+(direction==6 and 1 or -1)+comparison.pageCount)%comparison.pageCount;revision=revision+1;return true
   end
+  -- Return to the parent shop mode, or finish the scene request when already at the command menu.
   function S.cancel()
    if mode=='command'then local result=world.finishSceneRequest(request.token);S.finished=result.ok;return result.ok
    elseif mode=='number'then mode=pendingMode;pending=nil elseif mode=='sell' and #categories>1 then mode='category' else mode='command'end
    revision=revision+1;return true
   end
+  -- Confirm the current choice; quantity mode submits the quoted world revision as a stale-data guard.
   function S.confirm()
    if mode=='command'then
     if commandIndex==2 then return S.cancel()end
@@ -66,6 +73,7 @@ return function()
    end
    revision=revision+1;return true
   end
+  -- Apply touch or directional navigation, with quantity mode using 1/10-item steps.
   function S.select(kind,value)
    if mode=='number'then
     if kind=='touch'then return false end
@@ -89,6 +97,7 @@ return function()
    if next==old then return false end
    if mode=='command'then commandIndex=next elseif mode=='category'then categoryIndex=next else index=next end;revision=revision+1;return true
   end
+  -- Expose only state needed to detect menu-navigation sound changes.
   function S.soundState()return{mode=mode,index=mode=='command' and commandIndex or mode=='category' and categoryIndex or index,quantity=quantity,page=statusPage}end
   return S
  end

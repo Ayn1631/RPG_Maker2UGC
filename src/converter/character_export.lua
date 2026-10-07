@@ -1,8 +1,10 @@
+-- Export only character sheets referenced by the normalized project or its explicit bindings.
 return function(deps)
  local files,json,D=deps['build.files'],deps['contracts.json'],deps['contracts.diagnostic']
  local chars,png=deps['assets.characters'],deps['assets.png'];local M={}
  local function fail(reason)D.raise('E_CHARACTER_EXPORT',reason)end
  local function integer(n,lo,hi)return type(n)=='number' and n%1==0 and n>=lo and n<=hi end
+ -- Merge database, event, movement-route, and binding references by source name:index.
  function M.collect(data,bindings)
   local found={}
   local function add(name,index)
@@ -11,6 +13,7 @@ return function(deps)
    local key=name..':'..string.format('%.0f',index);found[key]={key=key,name=name,index=index}
   end
   local function image(record)if record and record~=json.null then add(record.characterName,record.characterIndex)end end
+  -- Source MV/MZ routes and compiled routes use different image command shapes.
   local function route(r,raw)
    for _,ins in ipairs(r and r.list or {})do
     if raw and ins.code==41 then add(ins.parameters[1],ins.parameters[2])
@@ -34,6 +37,7 @@ return function(deps)
   local keys={};for key in pairs(found)do keys[#keys+1]=key end;table.sort(keys)
   local result={};for _,key in ipairs(keys)do result[#result+1]=found[key]end;return result
  end
+ -- Apply target template IDs in down/left/right/up order, with three patterns per direction.
  function M.bind(manifest,bindings)
   local function reject(reason)D.raise('E_CHARACTER_BINDINGS',reason)end
   if type(manifest)~='table' or manifest.kind~='r2u.character-export' or manifest.schemaVersion~=1 or not json.is_array(manifest.entries)then reject('Expected a character-export manifest')end
@@ -54,8 +58,10 @@ return function(deps)
   end
   return bindings
  end
+ -- Crop each referenced sheet into manifest frames; bush characters also get upper/lower layers.
  function M.export(data,config,root)
   local used=M.collect(data,config.assetBindings);local cache,items,sources={},{},{}
+  -- MV uses a fixed 12-pixel bush split; MZ derives it from one quarter of the tile size.
   local depth=config.engineProfile=='mv-turn' and 12 or (data.database.System.records.tileSize or 48)/4
   local dir='generated/'..config.gameId..'/characters'
   local manifest={kind='r2u.character-export',schemaVersion=1,entries=json.array(),sources=json.array(),

@@ -30,6 +30,7 @@ return function()
     if key~="A" and key~="B" and key~="C" and key~="D" then fail("E_EVENT_IR","Invalid self-switch key") end
     return string.format("%d:%d:%s",context.mapId,context.eventId,key)
   end
+  -- Create isolated switch, variable, and self-switch stores from an optional initial snapshot.
   function M.new(initial)
     if initial~=nil and type(initial)~="table" then fail("E_EVENT_OPTIONS","state must be a table") end
     local data={switches={},variables={},selfSwitches={}}
@@ -49,6 +50,7 @@ return function()
       end
     end
     local S={}
+    -- Missing switches follow RPG Maker's false default; missing variables read as zero.
     function S.getSwitch(key) id(key); local v=data.switches[key]; if v==nil then return false end; return v end
     function S.getVariable(key) id(key); local v=data.variables[key]; if v==nil then return 0 end; return v end
     function S.getSelfSwitch(context,key)
@@ -66,6 +68,7 @@ return function()
       if operand.kind=="variable" then return S.getVariable(operand.value) end
       fail("E_EVENT_IR","Unknown operand kind")
     end
+    -- Resolve and validate the full range before replacing any value, so a bad operation is atomic.
     function S.applyVariables(first,last,operation,operand,resolve)
       range(first,last)
       if not integer(operation) or operation<0 or operation>5 then fail("E_EVENT_IR","Unknown variable operation") end

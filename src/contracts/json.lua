@@ -1,5 +1,6 @@
 return function(deps)
     local diagnostic = deps["contracts.diagnostic"]
+    -- Markers preserve the difference between empty arrays, empty objects, and JSON null.
     local array_mt, object_mt = {}, {}
     local null = {}
     local M = { null = null }
@@ -8,6 +9,7 @@ return function(deps)
         diagnostic.raise(code, reason, { offset = offset or 1, file = file })
     end
 
+    -- Byte ordering makes encoded object keys stable across Lua table iteration orders.
     local function byte_less(a, b)
         for i = 1, math.min(#a, #b) do
             local x, y = a:byte(i), b:byte(i)
@@ -49,6 +51,7 @@ return function(deps)
         if old ~= nil and not rawequal(old, array_mt) and not rawequal(old, object_mt) then fail("E_JSON_ENCODE", "Unsupported metatable") end
         return setmetatable(t, mt)
     end
+    -- Explicit markers are required when an empty table must encode as [] or {}.
     function M.array(t) return mark(t, array_mt) end
     function M.object(t) return mark(t, object_mt) end
 
@@ -62,6 +65,7 @@ return function(deps)
         if count ~= highest then return nil end
         return count
     end
+    -- Accept marked arrays or non-empty dense numeric tables; empty tables need a marker.
     function M.is_array(value)
         if type(value) ~= "table" or rawequal(value, null) then return false end
         local mt = getmetatable(value)
@@ -71,6 +75,7 @@ return function(deps)
         return size ~= nil and size > 0
     end
 
+    -- Decode with byte, depth, item, and string limits; options.file is attached to diagnostics.
     function M.decode(text, options)
         if options ~= nil and type(options) ~= "table" then fail("E_JSON_SYNTAX", "JSON options must be a table") end
         options = options or {}
@@ -222,6 +227,7 @@ return function(deps)
         return result
     end
 
+    -- Encode deterministically and reject cycles, sparse arrays, invalid UTF-8, and non-finite numbers.
     function M.encode(value)
         local active = {}
         local function bad(reason) fail("E_JSON_ENCODE", reason) end

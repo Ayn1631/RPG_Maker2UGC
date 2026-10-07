@@ -5,9 +5,11 @@ from pathlib import Path
 
 KINDS = {'container', 'textbox', 'image', 'cursor', 'button'}
 COLORS = {'imageColor', 'fontColor', 'outlineColor', 'bgColor'}
+# Omit save-specific identity and synchronization metadata; the catalog records reusable structure.
 OMIT = {'id', 'guid', 'kind', 'sourceFile', 'syncAllDevices'}
 
 def describe(node):
+    """Validate one static template subtree and return its stable properties and native-control count."""
     if node['kind'] not in KINDS:
         raise ValueError(f"Unsupported atomic/dynamic template kind: {node['kind']}")
     if node.get('scriptMappingIds'):
@@ -27,6 +29,7 @@ def describe(node):
     return dict(kind=node['kind'], count=count, properties=properties, colors=colors, children=children)
 
 def main():
+    """Read a simulator save and write a catalog that the offline builder can validate."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True, help='Simulator save with the real client template definitions')
     parser.add_argument('--output', type=Path, required=True, help='Catalog JSON; select it with uiTemplateCatalog in project.lua')

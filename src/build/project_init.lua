@@ -20,6 +20,7 @@ return function(deps)
   if not bytes and not(optional and code==2)then fail('E_INIT_SOURCE',tostring(reason),path)end
   return bytes
  end
+ -- Inspect a source project and write setup guidance/config candidates without replacing existing user files.
  function M.create(root,options,bindings)
   local id=options.gameId
   if type(id)~='string' or #id>64 or not id:match('^[a-z][a-z0-9_-]*$') or id:match('^com[1-9]$') or id:match('^lpt[1-9]$')

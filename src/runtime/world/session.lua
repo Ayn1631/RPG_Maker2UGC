@@ -97,6 +97,7 @@ return function(deps)
         end
         return service.actions
     end
+    -- Validate the normalized/precompiled package contracts, then create one authoritative world session.
     function M.new(data,options)
         options=options or {}
         if type(data)~="table" then fail("E_WORLD_PACKAGE","Normalized world is required") end
@@ -164,8 +165,10 @@ return function(deps)
             end
         end
         local maps={};if not mapService then for _,definition in ipairs(world.maps)do maps[definition.id]=copy(definition)end end
+        -- A process-local serial prevents request IDs from colliding across recreated sessions.
         sessionSerial=sessionSerial+1;if sessionSerial>9007199254740991 then fail('E_WORLD_BATTLE_ID','World session identity exhausted')end
         local sessionId=sessionSerial;local battleSequence=0;local battle,battleOwner,gameOver
+        -- Scene tokens bind modal UI replies to the request that opened the scene.
         local sceneRequest,sceneSequence=nil,0
         local actorNames,actorText,actorImages={},{},{};local titleActive=options.startAtTitle==true
         local battleCommandMemory={}
@@ -209,6 +212,7 @@ return function(deps)
         local reservedCommon={}
         local itemInfoCache,actorQueryCache={},{}
         local function invalidateItems()itemInfoCache,actorQueryCache={},{}end
+        -- `closed` makes teardown terminal; all later public calls must avoid reviving the session.
         local failedPrograms,reported,owners,closed={},{},{},false
         local S={}
         local extensionRuntime,extensionMessages=nil,{}
@@ -1023,6 +1027,8 @@ return function(deps)
         end
         function S.showMapName()mapName.remaining=150 end
         function S.hideMapName()mapName.remaining,mapName.opacity=0,0 end
+        -- Advance the supplied logical frames; the flags control battle-time accounting and record accumulation.
+        -- Return the number of interpreter work units consumed by this tick.
         function S.tick(frames,timeActive,appendBattleRecords)
             if not integer(frames) or frames<0 then fail("E_WORLD_TIME","Expected nonnegative logical frames") end
             if timeActive~=nil and type(timeActive)~='boolean'then fail('E_WORLD_TIME','Battle timeActive must be boolean')end
@@ -1278,10 +1284,12 @@ return function(deps)
             end
             table.sort(rows,function(a,b)return a.id<b.id end);return rows
         end
+        -- Submit input through the active battle's battleId/revision checks.
         function S.submitBattle(request)
             if closed or not battle then return{ok=false,reason=closed and 'closed' or 'no-battle'}end
             return battle.submit(request)
         end
+        -- Commit a settled battle snapshot only if the caller still holds its current revision.
         function S.finishBattle(request)
             if closed or not battle then return{ok=false,reason=closed and 'closed' or 'no-battle'}end
             local view=battle.view()
@@ -1301,6 +1309,7 @@ return function(deps)
             if options.audio then options.audio.endBattle(result)end
             return{ok=true,code=result.code,gameOver=fatal}
         end
+        -- Resume a message or extension only when both task identity and response token still match.
         function S.respond(id,token,answer)
             if closed then return false end
             local current=S.getMessage()
@@ -1584,6 +1593,7 @@ return function(deps)
             function S.useItem(id,targetId)return useAction(id,targetId,'item')end
             function S.useSkill(actorId,id,targetId)return useAction(id,targetId,'skill',actorId)end
         end
+        -- Return a detached snapshot of world, party, interpreter, battle, and extension state.
         function S.snapshot()
             local events={}
             for _,event in ipairs(eventStates) do
@@ -1604,6 +1614,7 @@ return function(deps)
                 vehicles=copy(vehicles),vehiclePhase=vehiclePhase,encounterCount=encounterCount,encountersEnabled=encountersEnabled,
                 presentation=options.presentation and options.presentation.snapshot(),extensions=extensionRuntime and copy(extensionRuntime.snapshot()) or {}}
         end
+        -- Cancel session-owned tasks and clear pending modal work; close is idempotent.
         function S.close()
             if closed then return end
             closed=true;mapMessage=nil;extensionMessages={}

@@ -3,6 +3,7 @@ return function(deps)
  local files,json,D=deps['build.files'],deps['contracts.json'],deps['contracts.diagnostic'];local M={}
  local function fail(code,reason,file)D.raise(code,reason,{file=file})end
  local function text(v)return type(v)=='string' and v~=''end
+ -- Check supplied records against this build; the result validates consistency, not real gameplay or publication.
  function M.run(root,config,options)
   root=root:gsub('/+$','')..'/';local target=options.target or 'ugc'
   if target~='ugc' and target~='simulator'then fail('E_RELEASE_TARGET','--target must be simulator or ugc')end

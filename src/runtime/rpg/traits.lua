@@ -56,6 +56,7 @@ return function(deps)
       end
       return out
     end
+    -- Stack matching traits with either multiplication (rates) or addition (bonuses).
     local function reduce(code,id,product)
       local value=product and 1.0 or 0.0
       for _,tr in ipairs(all) do
@@ -79,6 +80,7 @@ return function(deps)
     function S.allTraits() return list() end
     function S.traits(code) argument(code,nil,true); return list(code) end
     function S.traitsWithId(code,id) argument(code,nil,true); argument(id); return list(code,id) end
+    -- Rate traits multiply; additive traits sum, following RPG Maker's trait semantics.
     function S.traitsPi(code,id) argument(code,nil,true); argument(id); return reduce(code,id,true) end
     function S.traitsSum(code,id) argument(code,nil,true); argument(id); return reduce(code,id,false) end
     function S.traitsSumAll(code) argument(code,nil,true); return reduce(code,nil,false) end

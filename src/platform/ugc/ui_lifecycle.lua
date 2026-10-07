@@ -323,6 +323,7 @@ return function()
    s.writes,s.operations={},{ }
   end
   local facade=setmetatable({},{__index=nativeGame})
+  -- Return a logical control immediately; the native clone is queued for a later host frame.
   function facade.InstantiateClientUIControl(id,parent)
    if not enabled then fail('E_UI_LIFECYCLE_DISABLED','Cannot create controls while UI lifecycle is disabled')end
    if type(id)=='number'and (id~=id or id%1~=0)then fail('E_UI_TEMPLATE_UNKNOWN','Expected an integer native template ID')end
@@ -386,12 +387,15 @@ return function()
    end
    s.writes,s.operations={},{ }
   end
+  -- Reset per-frame counters before the host's OnUpdate work begins.
   function R.beginFrame()
    if active then fail('E_UI_LIFECYCLE_FRAME','A host frame is already active')end
    active=true;stats.frames=stats.frames+1;stats.lastFrameCreated,stats.lastFrameDestroyed=0,0
    stats.lastFrameAcquired,stats.lastFrameReleased=0,0
   end
+  -- Close the frame and schedule another update if queued native work remains.
   function R.endFrame()active=false;schedule()end
+  -- Spend the current frame's create/destroy budget on queued native control operations.
   function R.flush()
    if not active then return 0,0 end
    local added,removed=0,0
@@ -462,6 +466,7 @@ return function()
   end
   function R.pending()return pending()end
   function R.retired(handle)local s=type(handle)=='table'and rawget(handle,'_uiLifecycle');return s and s.owner==owner and s.retired==true or false end
+  -- Disabling the lifecycle retires queued creations so close/reload can drain them safely.
   function R.setEnabled(value)
    enabled=value==true
    if not enabled then

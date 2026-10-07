@@ -13,6 +13,7 @@ return function(deps)
   if type(v)~='table' or v==J.null then fail('Expected source declaration')end
   for k in pairs(v)do if not allowed[k]then fail('Unknown source declaration field '..tostring(k))end end
  end
+ -- Check the extension's declared source inputs against the supported database contract.
  function M.validate(schema)
   local seen={};dense(schema.notes or {},128)
   for _,d in ipairs(schema.notes or {})do
@@ -27,6 +28,7 @@ return function(deps)
    if n>64 then fail('At most 64 extra inputs')end
   end
  end
+ -- Extract namespaced source notes while retaining their source file and JSON locations.
  function M.notes(extensionId,declarations,index,refs)
   local byDatabase,out={},J.array();local prefix=extensionId..'.'
   for _,d in ipairs(declarations or {})do byDatabase[d.database]=byDatabase[d.database] or {};byDatabase[d.database][d.tag]=d end
@@ -71,6 +73,7 @@ return function(deps)
   end
   return out
  end
+ -- Run registered adapter readers and normalize their outputs before they enter a build package.
  function M.inputs(adapter,context,schemas,read)
   local declarations={}
   if adapter.collectInputs then declarations=adapter.collectInputs(S.copy(context))end
