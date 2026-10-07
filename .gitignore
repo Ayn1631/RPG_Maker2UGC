@@ -11,7 +11,6 @@
 /templates/
 /tests/
 /AGENTS.md
-/README.md
 
 # Only the generic builder entry points are in the requested submission scope.
 /tools/*
