@@ -1,0 +1,31 @@
+# Submission boundary: keep local project data and generated material out of Git.
+/.work/
+/assets/
+/dist/
+/Docs/
+/examples/
+/extensions/
+/generated/
+/projects/
+/simulator/
+/templates/
+/tests/
+/AGENTS.md
+/README.md
+
+# Only the generic builder entry points are in the requested submission scope.
+/tools/*
+!/tools/bootstrap.lua
+!/tools/import-ui-templates.py
+!/tools/module_manifest.lua
+!/tools/r2u.lua
+!/tools/sdk-native.lua
+
+# Ship the complete migration skill and its ready-to-share archive.
+/skills/*
+!/skills/rpg-maker-to-lua/
+!/skills/rpg-maker-to-lua.zip
+
+# Python bytecode is local build output.
+**/__pycache__/
+*.py[cod]

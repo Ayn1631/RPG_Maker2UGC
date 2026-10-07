@@ -1,0 +1,4 @@
+interface:
+  display_name: "RPG Maker → 千星 Lua 迁移"
+  short_description: "分步引导填写个人工程与目标绑定，自动生成配置并迁移 MV/MZ 到千星 Lua"
+  default_prompt: "使用 $rpg-maker-to-lua，先引导我填写自己的工程路径和交付目标，自动读取可识别字段，逐项解释缺少的模板与音频绑定，再生成我的配置并完成迁移验证；不要沿用别人的配置值。"
