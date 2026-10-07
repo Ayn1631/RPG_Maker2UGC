@@ -1,5 +1,7 @@
 # RPG Maker → Lua → UGC
 
+English | [简体中文](README.zh-CN.md)
+
 RPG_Maker2UGC converts compatible RPG Maker MV/MZ projects into a self-contained `levelScript.lua` for UGC. Conversion and bundling run offline: game logic, static data, resource bindings, and registered extensions are compiled into one Lua file.
 
 This repository contains the builder source and the [`rpg-maker-to-lua` migration Skill](skills/rpg-maker-to-lua/SKILL.md). It does not include game projects, game assets, target UI template catalogs, example projects, or test fixtures. Bring a source project and the resource/template bindings you are authorized to use.
