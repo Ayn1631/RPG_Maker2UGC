@@ -539,7 +539,7 @@ return function(deps)
   end
   buildView=function(snap,message)
    local menu=commands(snap);if message then message=copy(message);message.selectedChoice=selected end
-   local out={scene=scene,focus=focus,token=token(),closed=closed,world=copy(snap),message=message,menu={commands=menu,selectedIndex=menuIndex,formation=focus=='actor'and personalCommand=='formation',pendingIndex=formationPending},members={}}
+   local out={scene=scene,focus=focus,token=token(),closed=closed,world=snap,message=message,menu={commands=menu,selectedIndex=menuIndex,formation=focus=='actor'and personalCommand=='formation',pendingIndex=formationPending},members={}}
    if messageFlow and message then out.messageFlow=messageFlow.view()end
    if scene=='battle'then out.battle=battle.project()end
    for _,id in ipairs(snap.party.members)do local member={actorId=id,sourceActor=actorPresentation(id)}
