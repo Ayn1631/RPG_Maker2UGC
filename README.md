@@ -16,6 +16,10 @@ This repository contains the builder source and the [`rpg-maker-to-lua` migratio
 
 Implemented modules do not imply that every engine version, plugin, parameter, or target template has been verified. Missing or unsupported inputs should be treated as build gaps, not replaced with guessed resources. A successful build does not confirm that the official editor loaded, ran, accepted, or published the result.
 
+## Save support
+
+Save/load is not implemented yet because my current UGC creator level is not high enough to develop it. I plan to add it later.
+
 ## Requirements
 
 - Lua 5.3.
